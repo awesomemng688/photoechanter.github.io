@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Нийлүүлэх • Photo Tools MN</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><a href="index.html">Photo Tools MN</a></div>
+    <nav class="nav">
+      <a href="restore.html">Сэргээх</a>
+      <a href="merge.html">Нийлүүлэх</a>
+      <a href="login.html">Нэвтрэх</a>
+      <a class="pill" href="signup.html">Бүртгүүлэх</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h1>Зураг нийлүүлэх</h1>
+      <p class="muted">2 зураг сонгоод “Нийлүүлэх” дар. Дараа нь Download.</p>
+
+      <div class="grid">
+        <div>
+          <label class="lbl">Зураг A</label>
+          <input type="file" id="fileA" accept="image/*" />
+        </div>
+        <div>
+          <label class="lbl">Зураг B</label>
+          <input type="file" id="fileB" accept="image/*" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="mergeBtn" class="btn">Нийлүүлэх</button>
+        <button id="swapBtn" class="btn ghost">A/B солих</button>
+        <a id="downloadBtn" class="btn ghost" download="merged.png" style="display:none;">Download</a>
+      </div>
+
+      <div class="canvasBox">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <p class="tiny">Free: өдөрт 1 зураг (түр хязгаар). PRO-д хязгааргүй болгоно.</p>
+    </section>
+
+    <section class="card">
+      <h2>Статус</h2>
+      <p class="tiny" id="authStatus">👤 Guest</p>
+    </section>
+  </main>
+
+  <footer class="foot">© <span id="year"></span> Photo Tools MN</footer>
+
+  <script src="auth.js"></script>
+  <script src="merge.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

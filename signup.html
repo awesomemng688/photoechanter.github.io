@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Бүртгүүлэх</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><a href="index.html">Photo Tools MN</a></div>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <h1>📝 Бүртгүүлэх</h1>
+
+    <label class="lbl">Email</label>
+    <input id="email" class="input" type="email">
+
+    <label class="lbl">Нууц үг (6+)</label>
+    <input id="password" class="input" type="password">
+
+    <div class="actions">
+      <button class="btn" id="signupBtn">Бүртгүүлэх</button>
+      <a class="btn ghost" href="login.html">Нэвтрэх</a>
+    </div>
+
+    <p id="msg" class="tiny"></p>
+  </section>
+</main>
+
+<script type="module" src="auth.js"></script>
+
+<script type="module">
+  const email = document.getElementById("email");
+  const pass = document.getElementById("password");
+  const msg = document.getElementById("msg");
+
+  document.getElementById("signupBtn").onclick = async () => {
+    try {
+      await window.firebaseSignup(email.value.trim(), pass.value);
+      msg.textContent = "✅ Амжилттай бүртгэгдлээ";
+      setTimeout(() => location.href = "dashboard.html", 400);
+    } catch (e) {
+      msg.textContent = "❌ " + e.message;
+    }
+  };
+</script>
+
+</body>
+</html>

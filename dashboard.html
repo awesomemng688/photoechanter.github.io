@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><a href="index.html">Photo Tools MN</a></div>
+  <nav class="nav">
+    <a href="restore.html">Сэргээх</a>
+    <a href="merge.html">Нийлүүлэх</a>
+    <a href="#" id="logoutBtn">Гарах</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <h1>👤 Dashboard</h1>
+    <p id="authStatus">👤</p>
+
+    <div class="actions">
+      <a class="btn" href="restore.html">Зураг сэргээх</a>
+      <a class="btn ghost" href="merge.html">Зураг нийлүүлэх</a>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="auth.js"></script>
+
+<script type="module">
+  // login хийгээгүй бол оруулахгүй
+  window.requireAuthOrRedirect("login.html");
+
+  document.getElementById("logoutBtn").onclick = async (e) => {
+    e.preventDefault();
+    await window.firebaseLogout();
+    location.href = "index.html";
+  };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photo Tools MN</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><a href="index.html">Photo Tools MN</a></div>
+    <nav class="nav">
+      <a href="restore.html">Сэргээх</a>
+      <a href="merge.html">Нийлүүлэх</a>
+      <a href="login.html">Нэвтрэх</a>
+      <a class="pill" href="signup.html">Бүртгүүлэх</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h1>Нүүр</h1>
+      <p class="muted">Хуучны зураг сэргээх + олон зураг нэг болгох. Дараа нь XP/PRO, Cloud save, QPay нэмнэ.</p>
+
+      <div class="actions">
+        <a class="btn" href="restore.html">Зураг сэргээх</a>
+        <a class="btn ghost" href="merge.html">Зураг нийлүүлэх</a>
+      </div>
+
+      <p class="tiny" id="authStatus">👤 Guest</p>
+    </section>
+
+    <section class="card">
+      <h2>Төлөвлөгөө</h2>
+      <ul>
+        <li>Free: өдөрт 1 зураг</li>
+        <li>PRO: 5000₮ (HD, watermarkгүй, cloud хадгалалт)</li>
+        <li>XP: feature unlock / action pay</li>
+        <li>QPay: төлөөд шууд PRO</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">© <span id="year"></span> Photo Tools MN</footer>
+
+  <script src="auth.js"></script>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

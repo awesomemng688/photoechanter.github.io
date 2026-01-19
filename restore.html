@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Restore • Photo Tools MN</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><a href="index.html">Photo Tools MN</a></div>
+  <nav class="nav">
+    <a href="restore.html">Сэргээх</a>
+    <a href="merge.html">Нийлүүлэх</a>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <section class="card">
+    <h1>🧠 AI Restore (хуучин зураг)</h1>
+    <p class="muted">Зургаа оруулаад Auto Enhance эсвэл AI Restore дарна уу.</p>
+
+    <!-- IMAGE INPUT -->
+    <label class="lbl">Зураг оруулах</label>
+    <input type="file" id="fileR" accept="image/*" class="input">
+
+    <!-- PRESETS -->
+    <div class="actions">
+      <button class="btn" id="autoBtn">✨ Auto Enhance</button>
+      <button class="btn ghost" id="faceBtn">🙂 Face Focus</button>
+      <button class="btn ghost" id="oldBtn">🕰️ Old Photo</button>
+    </div>
+
+    <!-- SLIDERS -->
+    <div class="grid">
+      <div>
+        <label class="lbl">Sharpen</label>
+        <input id="sharpen" type="range" min="0" max="100" value="35">
+      </div>
+      <div>
+        <label class="lbl">Denoise</label>
+        <input id="denoise" type="range" min="0" max="100" value="25">
+      </div>
+      <div>
+        <label class="lbl">Brightness</label>
+        <input id="bright" type="range" min="80" max="130" value="105">
+      </div>
+      <div>
+        <label class="lbl">Contrast</label>
+        <input id="contrast" type="range" min="80" max="150" value="120">
+      </div>
+      <div>
+        <label class="lbl">Saturation</label>
+        <input id="sat" type="range" min="80" max="150" value="110">
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="actions">
+      <button id="applyBtn" class="btn">Apply</button>
+      <button class="btn ghost" id="aiRestoreBtn">🤖 AI Restore</button>
+      <a id="downloadR" class="btn ghost" download="restored.png" style="display:none;">Download</a>
+    </div>
+
+    <!-- STATUS -->
+    <p class="tiny" id="status"></p>
+    <p class="tiny" id="aiStatus"></p>
+
+    <!-- CANVAS -->
+    <canvas id="canvasR" style="width:100%;max-width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.15);margin-top:10px;"></canvas>
+
+    <!-- AI RESULT -->
+    <img id="aiResult" style="display:none;width:100%;border-radius:12px;margin-top:10px;">
+  </section>
+
+</main>
+
+<script src="restore.js"></script>
+</body>
+</html>
