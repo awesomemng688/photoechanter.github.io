@@ -51,8 +51,8 @@ exports.handler = async (event, context) => {
         version,
         input: {
           image, // base64 data URL OK
-          codeformer_fidelity: 0.7,
-          background_enhance: true,
+          codeformer_fidelity: 0.90,
+          background_enhance: false,
           face_upsample: true,
           upscale: 2
         }
