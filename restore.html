@@ -17,7 +17,6 @@
 </header>
 
 <main class="wrap">
-
   <section class="card">
     <h1>🧠 AI Restore (хуучин зураг)</h1>
     <p class="muted">Зургаа оруулаад Auto Enhance эсвэл AI Restore дарна уу.</p>
@@ -28,9 +27,9 @@
 
     <!-- PRESETS -->
     <div class="actions">
-      <button class="btn" id="autoBtn">✨ Auto Enhance</button>
-      <button class="btn ghost" id="faceBtn">🙂 Face Focus</button>
-      <button class="btn ghost" id="oldBtn">🕰️ Old Photo</button>
+      <button type="button" class="btn" id="autoBtn">✨ Auto Enhance</button>
+      <button type="button" class="btn ghost" id="faceBtn">🙂 Face Focus</button>
+      <button type="button" class="btn ghost" id="oldBtn">🕰️ Old Photo</button>
     </div>
 
     <!-- SLIDERS -->
@@ -59,8 +58,8 @@
 
     <!-- ACTIONS -->
     <div class="actions">
-      <button id="applyBtn" class="btn">Apply</button>
-      <button class="btn ghost" id="aiRestoreBtn">🤖 AI Restore</button>
+      <button type="button" id="applyBtn" class="btn">Apply</button>
+      <button type="button" class="btn ghost" id="aiRestoreBtn">🤖 AI Restore</button>
       <a id="downloadR" class="btn ghost" download="restored.png" style="display:none;">Download</a>
     </div>
 
@@ -74,7 +73,6 @@
     <!-- AI RESULT -->
     <img id="aiResult" style="display:none;width:100%;border-radius:12px;margin-top:10px;">
   </section>
-
 </main>
 
 <script src="restore.js"></script>
