@@ -114,11 +114,36 @@ function tryEnhance(denoise, sharpen){
   ctx.putImageData(imgData,0,0);
 }
 
+// ===== Safe fetch helper (timeout + better errors) =====
+async function postJsonWithTimeout(url, payload, ms = 60000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal
+    });
+
+    const raw = await r.text(); // эхлээд text
+    let data = null;
+
+    try { data = JSON.parse(raw); } catch { /* JSON биш байж болно */ }
+
+    return { ok: r.ok, status: r.status, raw, data };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 // ===== Events =====
 fileR?.addEventListener("change", async () => {
   try{
     const img = await loadImage(fileR.files[0]);
     baseImg = img;
+
     canvas.width = img.width;
     canvas.height = img.height;
 
@@ -153,39 +178,38 @@ aiBtn && (aiBtn.onclick = async ()=>{
 
   const file = fileR.files[0];
 
-  // base64 болгоно (Replicate image input-д тохиромжтой)
   const reader = new FileReader();
   reader.onload = async () => {
     try{
       const fnUrl = "/.netlify/functions/ai-restore";
 
-      const r = await fetch(fnUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: reader.result })
-      });
+      const res = await postJsonWithTimeout(fnUrl, { image: reader.result }, 90000);
 
-      // эхлээд текст авна (JSON биш ирвэл барих)
-      const raw = await r.text();
-      let data;
-      try { data = JSON.parse(raw); }
-      catch {
-        setText(aiStatus, "❌ Function JSON биш буцаалаа. (HTML/404 байж магадгүй)\n" + raw.slice(0,120));
+      // JSON биш ирвэл (ихэвчлэн HTML/404)
+      if (!res.data) {
+        setText(aiStatus,
+          `❌ Function JSON биш буцаалаа (status ${res.status}).\n` +
+          res.raw.slice(0, 200)
+        );
         return;
       }
 
-      if (!r.ok){
-        setText(aiStatus, "❌ Алдаа: " + (data.error || raw));
+      // Алдаа бол дэлгэрэнгүйг бүрэн харуулна
+      if (!res.ok){
+        // data.error + data.details байж магадгүй
+        setText(aiStatus,
+          "❌ Алдаа:\n" + JSON.stringify(res.data, null, 2)
+        );
         return;
       }
 
-      const out = Array.isArray(data.output)
-        ? data.output[data.output.length - 1]
-        : data.output;
+      const out = Array.isArray(res.data.output)
+        ? res.data.output[res.data.output.length - 1]
+        : res.data.output;
 
       if (!out){
         setText(aiStatus, "❌ AI output олдсонгүй. Console шалга.");
-        console.log("AI response:", data);
+        console.log("AI response:", res.data);
         return;
       }
 
@@ -193,7 +217,11 @@ aiBtn && (aiBtn.onclick = async ()=>{
       aiResult.style.display = "block";
       setText(aiStatus, "✅ AI сэргээлт бэлэн!");
     }catch(e){
-      setText(aiStatus, "❌ Failed to fetch: " + (e?.message || e));
+      if (String(e).includes("AbortError")) {
+        setText(aiStatus, "❌ Хугацаа хэтэрлээ (timeout). Дахиад оролдоорой.");
+      } else {
+        setText(aiStatus, "❌ Failed to fetch: " + (e?.message || e));
+      }
     }
   };
   reader.readAsDataURL(file);
