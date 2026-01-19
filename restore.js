@@ -56,3 +56,4 @@ aiBtn && aiBtn.addEventListener("click", async (e) => {
 
   reader.readAsDataURL(file);
 });
+
