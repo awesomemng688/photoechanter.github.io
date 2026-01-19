@@ -24,7 +24,9 @@
         type="email"
         placeholder="example@gmail.com"
         autocomplete="email"
+        inputmode="email"
         required
+        autofocus
       />
 
       <label class="lbl" for="password">Нууц үг</label>
@@ -34,6 +36,7 @@
         type="password"
         placeholder="******"
         autocomplete="current-password"
+        minlength="6"
         required
       />
 
@@ -61,16 +64,6 @@
   const msgEl = document.getElementById("msg");
   const btn = document.getElementById("loginBtn");
 
-  const friendlyError = (e) => {
-    const code = e?.code || "";
-    if (code.includes("auth/invalid-email")) return "Имэйл буруу байна.";
-    if (code.includes("auth/user-not-found")) return "Энэ имэйлээр бүртгэл олдсонгүй.";
-    if (code.includes("auth/wrong-password")) return "Нууц үг буруу байна.";
-    if (code.includes("auth/invalid-credential")) return "Имэйл эсвэл нууц үг буруу байна.";
-    if (code.includes("auth/too-many-requests")) return "Олон удаа оролдлоо. Түр хүлээгээд дахин оролдоорой.";
-    return e?.message || "Алдаа гарлаа.";
-  };
-
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     msgEl.textContent = "";
@@ -83,15 +76,22 @@
       return;
     }
 
+    // HTML5 basic validation (email format гэх мэт)
+    if (!emailEl.checkValidity() || !passEl.checkValidity()) {
+      msgEl.textContent = "❌ Мэдээллээ зөв бөглөнө үү.";
+      return;
+    }
+
     btn.disabled = true;
     btn.textContent = "Нэвтэрч байна...";
 
     try {
+      // auth.js дээр friendly error-г e.message болгож өгсөн байгаа (өмнө зассан хувилбар)
       await window.firebaseLogin(email, pass);
       msgEl.textContent = "✅ Амжилттай нэвтэрлээ";
       setTimeout(() => (location.href = "dashboard.html"), 400);
     } catch (e) {
-      msgEl.textContent = "❌ " + friendlyError(e);
+      msgEl.textContent = "❌ " + (e?.message || "Алдаа гарлаа.");
     } finally {
       btn.disabled = false;
       btn.textContent = "Нэвтрэх";
