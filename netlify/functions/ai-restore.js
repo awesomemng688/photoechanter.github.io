@@ -37,7 +37,10 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 1) start prediction
+    // ✅ Replicate CodeFormer (sczhou/codeformer) version (hash)
+    const version = "cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2";
+
+    // 1) Start prediction
     const startResp = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -45,10 +48,12 @@ exports.handler = async (event, context) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        version: "8af9d9c39bca9c8b6d2e8d2e4b1c7c3c7f65a0c6b93e5d4d3a4e8b7f3e0a1c9",
+        version,
         input: {
-          image,
-          fidelity: 0.7,
+          image, // base64 data URL OK
+          codeformer_fidelity: 0.7,
+          background_enhance: true,
+          face_upsample: true,
           upscale: 2
         }
       })
@@ -64,7 +69,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 2) poll
+    // 2) Poll until finished
     while (prediction.status !== "succeeded" && prediction.status !== "failed") {
       await new Promise((r) => setTimeout(r, 1500));
 
@@ -92,7 +97,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 3) success
+    // 3) Success
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
