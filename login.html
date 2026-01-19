@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="mn">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Нэвтрэх</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
@@ -16,38 +16,87 @@
   <section class="card">
     <h1>🔐 Нэвтрэх</h1>
 
-    <label class="lbl">Email</label>
-    <input id="email" class="input" type="email" placeholder="example@gmail.com">
+    <form id="loginForm" novalidate>
+      <label class="lbl" for="email">Email</label>
+      <input
+        id="email"
+        class="input"
+        type="email"
+        placeholder="example@gmail.com"
+        autocomplete="email"
+        required
+      />
 
-    <label class="lbl">Нууц үг</label>
-    <input id="password" class="input" type="password" placeholder="******">
+      <label class="lbl" for="password">Нууц үг</label>
+      <input
+        id="password"
+        class="input"
+        type="password"
+        placeholder="******"
+        autocomplete="current-password"
+        required
+      />
 
-    <div class="actions">
-      <button class="btn" id="loginBtn">Нэвтрэх</button>
-      <a class="btn ghost" href="signup.html">Бүртгүүлэх</a>
-    </div>
+      <div class="row" style="display:flex; justify-content:space-between; gap:10px; margin:10px 0;">
+        <a class="tiny" href="forgot.html">Нууц үг мартсан?</a>
+      </div>
 
-    <p id="msg" class="tiny"></p>
-    <p id="authStatus" class="tiny">👤 Guest</p>
+      <div class="actions">
+        <button class="btn" id="loginBtn" type="submit">Нэвтрэх</button>
+        <a class="btn ghost" href="signup.html">Бүртгүүлэх</a>
+      </div>
+
+      <p id="msg" class="tiny" aria-live="polite"></p>
+      <p id="authStatus" class="tiny">👤 Guest</p>
+    </form>
   </section>
 </main>
 
 <script type="module" src="auth.js"></script>
 
 <script type="module">
-  const email = document.getElementById("email");
-  const pass = document.getElementById("password");
-  const msg = document.getElementById("msg");
+  const form = document.getElementById("loginForm");
+  const emailEl = document.getElementById("email");
+  const passEl = document.getElementById("password");
+  const msgEl = document.getElementById("msg");
+  const btn = document.getElementById("loginBtn");
 
-  document.getElementById("loginBtn").onclick = async () => {
-    try {
-      await window.firebaseLogin(email.value.trim(), pass.value);
-      msg.textContent = "✅ Амжилттай нэвтэрлээ";
-      setTimeout(() => location.href = "dashboard.html", 400);
-    } catch (e) {
-      msg.textContent = "❌ " + e.message;
-    }
+  const friendlyError = (e) => {
+    const code = e?.code || "";
+    if (code.includes("auth/invalid-email")) return "Имэйл буруу байна.";
+    if (code.includes("auth/user-not-found")) return "Энэ имэйлээр бүртгэл олдсонгүй.";
+    if (code.includes("auth/wrong-password")) return "Нууц үг буруу байна.";
+    if (code.includes("auth/invalid-credential")) return "Имэйл эсвэл нууц үг буруу байна.";
+    if (code.includes("auth/too-many-requests")) return "Олон удаа оролдлоо. Түр хүлээгээд дахин оролдоорой.";
+    return e?.message || "Алдаа гарлаа.";
   };
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    msgEl.textContent = "";
+
+    const email = emailEl.value.trim();
+    const pass = passEl.value;
+
+    if (!email || !pass) {
+      msgEl.textContent = "❌ Email болон нууц үгээ бөглөнө үү.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Нэвтэрч байна...";
+
+    try {
+      await window.firebaseLogin(email, pass);
+      msgEl.textContent = "✅ Амжилттай нэвтэрлээ";
+      setTimeout(() => (location.href = "dashboard.html"), 400);
+    } catch (e) {
+      msgEl.textContent = "❌ " + friendlyError(e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Нэвтрэх";
+    }
+  });
 </script>
 
 </body>
