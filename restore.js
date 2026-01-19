@@ -22,7 +22,9 @@ const satEl     = document.getElementById("sat");
 
 let baseImg = null;
 
-// ===== Utils =====
+// ===== Helpers =====
+function setText(el, t) { if (el) el.textContent = t; }
+
 function loadImage(file){
   return new Promise((resolve, reject) => {
     if (!file) return reject("Зургаа сонгоорой.");
@@ -48,12 +50,6 @@ function setPreset(preset){
   }
 }
 
-function drawBase(){
-  ctx.filter = "none";
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
-}
-
 function applyFilters(){
   if (!baseImg) return;
 
@@ -65,7 +61,7 @@ function applyFilters(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
 
-  // simple denoise + sharpen (AI-шиг мэдрэмж)
+  // AI биш, гэхдээ “AI шиг” мэдрэмж
   tryEnhance(Number(denoiseEl.value), Number(sharpenEl.value));
 
   downloadR.href = canvas.toDataURL("image/png");
@@ -78,7 +74,7 @@ function tryEnhance(denoise, sharpen){
   const w = canvas.width, h = canvas.height;
   const idx = (x,y)=> (y*w + x)*4;
 
-  // denoise
+  // Denoise
   const d = Math.min(1, denoise/100);
   if (d>0){
     const copy = new Uint8ClampedArray(data);
@@ -100,7 +96,7 @@ function tryEnhance(denoise, sharpen){
     }
   }
 
-  // sharpen
+  // Sharpen
   const s = Math.min(1, sharpen/100);
   if (s>0){
     const copy = new Uint8ClampedArray(data);
@@ -119,77 +115,86 @@ function tryEnhance(denoise, sharpen){
 }
 
 // ===== Events =====
-fileR.addEventListener("change", async () => {
+fileR?.addEventListener("change", async () => {
   try{
     const img = await loadImage(fileR.files[0]);
     baseImg = img;
     canvas.width = img.width;
     canvas.height = img.height;
-    drawBase();
-    statusEl.textContent = "✅ Зураг бэлэн. Preset сонгоод Apply дар.";
+
+    ctx.filter = "none";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    setText(statusEl, "✅ Зураг бэлэн. Preset сонгоод Apply дар.");
     downloadR.style.display = "none";
-    aiResult.style.display = "none";
-    aiStatus.textContent = "";
+
+    if (aiResult) aiResult.style.display = "none";
+    setText(aiStatus, "");
   }catch(e){
-    statusEl.textContent = "❌ " + e;
+    setText(statusEl, "❌ " + e);
   }
 });
 
-autoBtn.onclick = ()=>{ setPreset("auto"); statusEl.textContent="✨ Auto Enhance preset"; };
-faceBtn.onclick = ()=>{ setPreset("face"); statusEl.textContent="🙂 Face Focus preset"; };
-oldBtn.onclick  = ()=>{ setPreset("old");  statusEl.textContent="🕰️ Old Photo preset"; };
+autoBtn && (autoBtn.onclick = ()=>{ setPreset("auto"); setText(statusEl,"✨ Auto Enhance preset"); });
+faceBtn && (faceBtn.onclick = ()=>{ setPreset("face"); setText(statusEl,"🙂 Face Focus preset"); });
+oldBtn  && (oldBtn.onclick  = ()=>{ setPreset("old");  setText(statusEl,"🕰️ Old Photo preset"); });
 
-applyBtn.onclick = ()=>{
+applyBtn && (applyBtn.onclick = ()=>{
   if (!baseImg){ alert("Эхлээд зураг сонгоорой."); return; }
   applyFilters();
-};
+});
 
-// ===== AI Restore (Netlify Function) =====
-aiBtn.onclick = async ()=>{
-  if (!fileR.files[0]){ alert("Эхлээд зураг сонгоорой"); return; }
+// ===== AI Restore (POST -> Netlify Function) =====
+aiBtn && (aiBtn.onclick = async ()=>{
+  if (!fileR?.files?.[0]){ alert("Эхлээд зураг сонгоорой"); return; }
 
-  aiStatus.textContent = "🤖 AI сэргээж байна... (10–20 сек)";
-  aiResult.style.display = "none";
+  setText(aiStatus, "🤖 AI сэргээж байна... (10–30 сек)");
+  if (aiResult) aiResult.style.display = "none";
 
+  const file = fileR.files[0];
+
+  // base64 болгоно (Replicate image input-д тохиромжтой)
   const reader = new FileReader();
-  reader.onload = async ()=>{
+  reader.onload = async () => {
     try{
-      const r = await fetch("/.netlify/functions/ai-restore", {
+      const fnUrl = "/.netlify/functions/ai-restore";
+
+      const r = await fetch(fnUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: reader.result })
       });
 
-      // JSON алдааг барихын тулд эхлээд text
+      // эхлээд текст авна (JSON биш ирвэл барих)
       const raw = await r.text();
       let data;
-      try{ data = JSON.parse(raw); }
-      catch{
-        aiStatus.textContent = "❌ Server function JSON биш буцаалаа: " + raw.slice(0,120);
+      try { data = JSON.parse(raw); }
+      catch {
+        setText(aiStatus, "❌ Function JSON биш буцаалаа. (HTML/404 байж магадгүй)\n" + raw.slice(0,120));
         return;
       }
 
       if (!r.ok){
-        aiStatus.textContent = "❌ Алдаа: " + (data.error || raw);
+        setText(aiStatus, "❌ Алдаа: " + (data.error || raw));
         return;
       }
 
       const out = Array.isArray(data.output)
-        ? data.output[data.output.length-1]
+        ? data.output[data.output.length - 1]
         : data.output;
 
       if (!out){
-        aiStatus.textContent = "❌ AI буцаалт олдсонгүй (console шалга)";
-        console.log(data);
+        setText(aiStatus, "❌ AI output олдсонгүй. Console шалга.");
+        console.log("AI response:", data);
         return;
       }
 
       aiResult.src = out;
       aiResult.style.display = "block";
-      aiStatus.textContent = "✅ AI сэргээлт бэлэн!";
+      setText(aiStatus, "✅ AI сэргээлт бэлэн!");
     }catch(e){
-      aiStatus.textContent = "❌ Алдаа: " + e.message;
+      setText(aiStatus, "❌ Failed to fetch: " + (e?.message || e));
     }
   };
-  reader.readAsDataURL(fileR.files[0]);
-};
+  reader.readAsDataURL(file);
+});
