@@ -1,30 +1,81 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="mn">
 <head>
-  <meta charset="UTF-8">
-  <title>Forgot Password</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Нууц үг сэргээх</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h2>Нууц үг сэргээх</h2>
-  <form id="forgotForm">
-    <input type="email" id="email" placeholder="Email" required>
-    <button type="submit">Submit</button>
-  </form>
 
-  <script>
-    const form = document.getElementById("forgotForm");
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
-      const email = document.getElementById("email").value;
-      const res = await fetch("https://YOUR_API/reset-password-request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+<header class="top">
+  <div class="brand"><a href="index.html">Photo Tools MN</a></div>
+</header>
 
-      const data = await res.json();
-      alert(data.message);
-    });
-  </script>
+<main class="wrap">
+  <section class="card">
+    <h1>🔁 Нууц үг сэргээх</h1>
+
+    <form id="forgotForm" novalidate>
+      <label class="lbl" for="email">Email</label>
+      <input
+        id="email"
+        class="input"
+        type="email"
+        placeholder="example@gmail.com"
+        autocomplete="email"
+        required
+      />
+
+      <div class="actions">
+        <button class="btn" id="sendBtn" type="submit">Линк явуулах</button>
+        <a class="btn ghost" href="login.html">Буцах</a>
+      </div>
+
+      <p id="msg" class="tiny" aria-live="polite"></p>
+    </form>
+  </section>
+</main>
+
+<script type="module" src="auth.js"></script>
+<script type="module">
+  const form = document.getElementById("forgotForm");
+  const emailEl = document.getElementById("email");
+  const msgEl = document.getElementById("msg");
+  const btn = document.getElementById("sendBtn");
+
+  const friendlyError = (e) => {
+    const code = e?.code || "";
+    if (code.includes("auth/invalid-email")) return "Имэйл буруу байна.";
+    if (code.includes("auth/user-not-found")) return "Энэ имэйлээр бүртгэл олдсонгүй.";
+    return e?.message || "Алдаа гарлаа.";
+  };
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    msgEl.textContent = "";
+
+    const email = emailEl.value.trim();
+    if (!email) {
+      msgEl.textContent = "❌ Email-ээ бичнэ үү.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Явуулж байна...";
+
+    try {
+      // auth.js дээр энэ функцийг гаргаж өгнө (доороос хар)
+      await window.firebaseSendPasswordReset(email);
+      msgEl.textContent = "✅ Сэргээх линк имэйл рүү явууллаа (spam хавтсаа бас шалгаарай).";
+    } catch (e) {
+      msgEl.textContent = "❌ " + friendlyError(e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Линк явуулах";
+    }
+  });
+</script>
+
 </body>
 </html>
