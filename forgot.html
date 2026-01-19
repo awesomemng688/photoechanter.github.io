@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forgot Password</title>
+</head>
+<body>
+  <h2>Нууц үг сэргээх</h2>
+  <form id="forgotForm">
+    <input type="email" id="email" placeholder="Email" required>
+    <button type="submit">Submit</button>
+  </form>
+
+  <script>
+    const form = document.getElementById("forgotForm");
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const res = await fetch("https://YOUR_API/reset-password-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      alert(data.message);
+    });
+  </script>
+</body>
+</html>
