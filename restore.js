@@ -1,43 +1,27 @@
-// ===============================
-// Photo Tools MN - restore.js
-// Apply / Presets / Download / AI Restore
-// ===============================
-
 document.addEventListener("DOMContentLoaded", () => {
   // ===== Elements =====
   const fileR = document.getElementById("fileR");
   const canvas = document.getElementById("canvasR");
-  const ctx = canvas?.getContext("2d");
+  const ctx = canvas.getContext("2d");
 
-  const autoBtn  = document.getElementById("autoBtn");
-  const faceBtn  = document.getElementById("faceBtn");
-  const oldBtn   = document.getElementById("oldBtn");
+  const autoBtn = document.getElementById("autoBtn");
+  const faceBtn = document.getElementById("faceBtn");
+  const oldBtn  = document.getElementById("oldBtn");
   const applyBtn = document.getElementById("applyBtn");
-  const aiBtn    = document.getElementById("aiRestoreBtn");
+
+  const aiBtn = document.getElementById("aiRestoreBtn");
+  const colorizeBtn = document.getElementById("colorizeBtn");
 
   const downloadR = document.getElementById("downloadR");
-  const statusEl  = document.getElementById("status");
-  const aiStatus  = document.getElementById("aiStatus");
-  const aiResult  = document.getElementById("aiResult");
+  const statusEl = document.getElementById("status");
+  const aiStatus = document.getElementById("aiStatus");
+  const aiResult = document.getElementById("aiResult");
 
-  const sharpenEl  = document.getElementById("sharpen");
-  const denoiseEl  = document.getElementById("denoise");
-  const brightEl   = document.getElementById("bright");
-  const contrastEl = document.getElementById("contrast");
-  const satEl      = document.getElementById("sat");
-
-  // ===== Guard =====
-  const required = ["fileR","canvasR","autoBtn","faceBtn","oldBtn","applyBtn","aiRestoreBtn","status","aiStatus","aiResult"];
-  const missing = required.filter(id => !document.getElementById(id));
-  if (missing.length) {
-    console.error("Missing IDs:", missing);
-    alert("❌ restore.html дээр эдгээр id алга байна: " + missing.join(", "));
-    return;
-  }
-  if (!canvas || !ctx) {
-    alert("❌ Canvas олдсонгүй. canvasR шалга.");
-    return;
-  }
+  const sharpenEl = document.getElementById("sharpen");
+  const denoiseEl = document.getElementById("denoise");
+  const brightEl  = document.getElementById("bright");
+  const contrastEl= document.getElementById("contrast");
+  const satEl     = document.getElementById("sat");
 
   let baseImg = null;
 
@@ -47,10 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadImage(file){
     return new Promise((resolve, reject) => {
       if (!file) return reject("Зургаа сонгоорой.");
-      // Зураг форматыг түр шалгана
-      if (!file.type?.startsWith("image/")) {
-        return reject("Зураг файл сонгоорой (.jpg/.png).");
-      }
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => reject("Зураг уншиж чадсангүй.");
@@ -62,17 +42,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (preset === "auto") {
       sharpenEl.value = 35; denoiseEl.value = 25;
       brightEl.value = 105; contrastEl.value = 120; satEl.value = 112;
-    } else if (preset === "face") {
+    }
+    if (preset === "face") {
       sharpenEl.value = 45; denoiseEl.value = 15;
       brightEl.value = 108; contrastEl.value = 125; satEl.value = 115;
-    } else if (preset === "old") {
+    }
+    if (preset === "old") {
       sharpenEl.value = 30; denoiseEl.value = 40;
       brightEl.value = 110; contrastEl.value = 135; satEl.value = 118;
     }
   }
 
   function tryEnhance(denoise, sharpen){
-    // Энгийн denoise + sharpen (client-side)
     const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
     const data = imgData.data;
     const w = canvas.width, h = canvas.height;
@@ -128,107 +109,92 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.filter = `brightness(${bright}%) contrast(${contrast}%) saturate(${sat}%)`;
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
-    ctx.filter = "none";
 
     tryEnhance(Number(denoiseEl.value), Number(sharpenEl.value));
 
-    // Download link
     downloadR.href = canvas.toDataURL("image/png");
     downloadR.style.display = "inline-flex";
   }
 
-  // ===== Events: File change =====
+  async function callFn(fnUrl, imageDataUrl, statusPrefix){
+    setText(aiStatus, statusPrefix);
+    aiResult.style.display = "none";
+
+    const r = await fetch(fnUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageDataUrl })
+    });
+
+    const raw = await r.text();
+    let data = null;
+    try { data = JSON.parse(raw); } catch {}
+
+    if (!data) {
+      setText(aiStatus, `❌ Function JSON биш буцаалаа (status ${r.status}). ` + raw.slice(0,140));
+      return;
+    }
+    if (!r.ok) {
+      setText(aiStatus, "❌ Алдаа:\n" + JSON.stringify(data, null, 2));
+      return;
+    }
+
+    const out = Array.isArray(data.output) ? data.output[data.output.length - 1] : data.output;
+    if (!out) {
+      setText(aiStatus, "❌ AI output олдсонгүй.");
+      console.log("AI response:", data);
+      return;
+    }
+
+    aiResult.src = out;
+    aiResult.style.display = "block";
+    setText(aiStatus, "✅ Бэлэн!");
+  }
+
+  // ===== Events =====
   fileR.addEventListener("change", async () => {
     try{
       const img = await loadImage(fileR.files[0]);
       baseImg = img;
+      canvas.width = img.width;
+      canvas.height = img.height;
 
-      // Canvas хэмжээг хэт том байвал browser гацаж магадгүй тул resize хийнэ (safe)
-      const maxW = 1600;
-      const scale = img.width > maxW ? (maxW / img.width) : 1;
-      canvas.width  = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.filter = "none";
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       setText(statusEl, "✅ Зураг бэлэн. Preset сонгоод Apply дар.");
       downloadR.style.display = "none";
-
-      aiResult.style.display = "none";
       setText(aiStatus, "");
+      aiResult.style.display = "none";
     }catch(e){
       setText(statusEl, "❌ " + e);
     }
   });
 
-  // ===== Presets =====
-  autoBtn.addEventListener("click", (e)=>{ e.preventDefault(); setPreset("auto"); setText(statusEl,"✨ Auto Enhance preset"); });
-  faceBtn.addEventListener("click", (e)=>{ e.preventDefault(); setPreset("face"); setText(statusEl,"🙂 Face Focus preset"); });
-  oldBtn .addEventListener("click", (e)=>{ e.preventDefault(); setPreset("old");  setText(statusEl,"🕰️ Old Photo preset"); });
+  autoBtn.addEventListener("click", () => { setPreset("auto"); setText(statusEl,"✨ Auto Enhance preset"); });
+  faceBtn.addEventListener("click", () => { setPreset("face"); setText(statusEl,"🙂 Face Focus preset"); });
+  oldBtn.addEventListener("click",  () => { setPreset("old");  setText(statusEl,"🕰️ Old Photo preset"); });
 
-  // ===== Apply =====
-  applyBtn.addEventListener("click", (e)=> {
-    e.preventDefault();
-    if (!baseImg){ alert("Эхлээд зураг сонгоорой."); return; }
+  applyBtn.addEventListener("click", () => {
+    if (!baseImg) { alert("Эхлээд зураг сонгоорой."); return; }
     applyFilters();
   });
 
-  // ===== AI Restore (POST -> Netlify Function) =====
   aiBtn.addEventListener("click", async (e) => {
     e.preventDefault();
+    if (!fileR.files[0]) { alert("Эхлээд зураг сонгоорой"); return; }
 
-    if (!fileR?.files?.[0]) {
-      alert("Эхлээд зураг сонгоорой");
-      return;
-    }
-
-    setText(aiStatus, "🤖 AI сэргээж байна... (10–30 сек)");
-    aiResult.style.display = "none";
-
-    const file = fileR.files[0];
     const reader = new FileReader();
-
-    reader.onload = async () => {
-      try {
-        const fnUrl = "/.netlify/functions/ai-restore";
-
-        const r = await fetch(fnUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: reader.result })
-        });
-
-        const raw = await r.text();
-        let data = null;
-        try { data = JSON.parse(raw); } catch {}
-
-        if (!data) {
-          setText(aiStatus, `❌ Function JSON биш буцаалаа (status ${r.status}). ` + raw.slice(0, 160));
-          return;
-        }
-
-        if (!r.ok) {
-          setText(aiStatus, "❌ Алдаа:\n" + JSON.stringify(data, null, 2));
-          return;
-        }
-
-        const out = Array.isArray(data.output) ? data.output[data.output.length - 1] : data.output;
-        if (!out) {
-          setText(aiStatus, "❌ AI output олдсонгүй.");
-          console.log("AI response:", data);
-          return;
-        }
-
-        aiResult.src = out;
-        aiResult.style.display = "block";
-        setText(aiStatus, "✅ AI сэргээлт бэлэн!");
-      } catch (err) {
-        setText(aiStatus, "❌ Failed to fetch: " + (err?.message || err));
-      }
-    };
-
-    reader.readAsDataURL(file);
+    reader.onload = () => callFn("/.netlify/functions/ai-restore", reader.result, "🤖 Restore HD хийж байна... (10–30 сек)");
+    reader.readAsDataURL(fileR.files[0]);
   });
 
+  colorizeBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!fileR.files[0]) { alert("Эхлээд зураг сонгоорой"); return; }
+
+    const reader = new FileReader();
+    reader.onload = () => callFn("/.netlify/functions/ai-colorize", reader.result, "🎨 Colorize хийж байна... (10–30 сек)");
+    reader.readAsDataURL(fileR.files[0]);
+  });
 });
