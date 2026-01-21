@@ -59,12 +59,25 @@
     <!-- ACTIONS -->
     <div class="actions">
       <button type="button" id="applyBtn" class="btn">Apply</button>
-
-      <!-- 2 тусдаа AI товч -->
       <button type="button" class="btn ghost" id="aiRestoreBtn">🤖 Restore HD</button>
       <button type="button" class="btn ghost" id="colorizeBtn">🎨 Colorize</button>
-
       <a id="downloadR" class="btn ghost" download="restored.png" style="display:none;">Download</a>
+    </div>
+
+    <!-- PLAN UI (Free / Pro) -->
+    <div class="planbox" id="planBox" style="margin-top:10px;">
+      <div class="tiny">
+        <b>Plan:</b> <span id="planName">Free</span>
+        <span id="planHint" class="muted">• 1 зураг / 10 секунд</span>
+      </div>
+
+      <div class="actions" style="margin-top:8px;">
+        <button type="button" class="btn ghost" id="freePlanBtn">Free</button>
+        <button type="button" class="btn" id="proPlanBtn">Pro</button>
+        <button type="button" class="btn ghost" id="upgradeBtn">Upgrade</button>
+      </div>
+
+      <p class="tiny muted" id="planMsg" style="margin-top:6px;"></p>
     </div>
 
     <!-- STATUS -->
