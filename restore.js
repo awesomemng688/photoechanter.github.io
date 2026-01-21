@@ -24,6 +24,41 @@ document.addEventListener("DOMContentLoaded", () => {
   const satEl     = document.getElementById("sat");
 
   let baseImg = null;
+    // ===== Rate limit хамгаалалт =====
+  let aiBusy = false;
+
+  function setBtnLoading(btn, on) {
+    if (!btn) return;
+    btn.disabled = on;
+    btn.style.opacity = on ? "0.6" : "1";
+    btn.style.pointerEvents = on ? "none" : "auto";
+  }
+
+  async function withLock(btn, fn) {
+    if (aiBusy) {
+      setText(aiStatus, "⏳ Түр хүлээгээрэй... (AI ажиллаж байна)");
+      return;
+    }
+    aiBusy = true;
+
+    // 2 товчийг хамт lock хийнэ
+    setBtnLoading(aiBtn, true);
+    setBtnLoading(colorizeBtn, true);
+
+    try {
+      await fn();
+    } finally {
+      // 10 сек cooldown (Replicate free throttling-ээс хамгаална)
+      const cooldown = 10;
+      setText(aiStatus, `⏳ ${cooldown}s хүлээгээд дахин туршаарай.`);
+      setTimeout(() => {
+        aiBusy = false;
+        setBtnLoading(aiBtn, false);
+        setBtnLoading(colorizeBtn, false);
+      }, cooldown * 1000);
+    }
+  }
+
 
   // ===== Helpers =====
   const setText = (el, t) => { if (el) el.textContent = t; };
@@ -198,3 +233,4 @@ document.addEventListener("DOMContentLoaded", () => {
     reader.readAsDataURL(fileR.files[0]);
   });
 });
+
