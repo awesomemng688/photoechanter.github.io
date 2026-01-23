@@ -24,41 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const satEl     = document.getElementById("sat");
 
   let baseImg = null;
-    // ===== Rate limit хамгаалалт =====
-  let aiBusy = false;
-
-  function setBtnLoading(btn, on) {
-    if (!btn) return;
-    btn.disabled = on;
-    btn.style.opacity = on ? "0.6" : "1";
-    btn.style.pointerEvents = on ? "none" : "auto";
-  }
-
-  async function withLock(btn, fn) {
-    if (aiBusy) {
-      setText(aiStatus, "⏳ Түр хүлээгээрэй... (AI ажиллаж байна)");
-      return;
-    }
-    aiBusy = true;
-
-    // 2 товчийг хамт lock хийнэ
-    setBtnLoading(aiBtn, true);
-    setBtnLoading(colorizeBtn, true);
-
-    try {
-      await fn();
-    } finally {
-      // 10 сек cooldown (Replicate free throttling-ээс хамгаална)
-      const cooldown = 10;
-      setText(aiStatus, `⏳ ${cooldown}s хүлээгээд дахин туршаарай.`);
-      setTimeout(() => {
-        aiBusy = false;
-        setBtnLoading(aiBtn, false);
-        setBtnLoading(colorizeBtn, false);
-      }, cooldown * 1000);
-    }
-  }
-
 
   // ===== Helpers =====
   const setText = (el, t) => { if (el) el.textContent = t; };
@@ -66,6 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadImage(file){
     return new Promise((resolve, reject) => {
       if (!file) return reject("Зургаа сонгоорой.");
+      if (!file.type?.startsWith("image/")) return reject("Зураг файл сонгоорой (.jpg/.png).");
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => reject("Зураг уншиж чадсангүй.");
@@ -77,12 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (preset === "auto") {
       sharpenEl.value = 35; denoiseEl.value = 25;
       brightEl.value = 105; contrastEl.value = 120; satEl.value = 112;
-    }
-    if (preset === "face") {
+    } else if (preset === "face") {
       sharpenEl.value = 45; denoiseEl.value = 15;
       brightEl.value = 108; contrastEl.value = 125; satEl.value = 115;
-    }
-    if (preset === "old") {
+    } else if (preset === "old") {
       sharpenEl.value = 30; denoiseEl.value = 40;
       brightEl.value = 110; contrastEl.value = 135; satEl.value = 118;
     }
@@ -144,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.filter = `brightness(${bright}%) contrast(${contrast}%) saturate(${sat}%)`;
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+    ctx.filter = "none";
 
     tryEnhance(Number(denoiseEl.value), Number(sharpenEl.value));
 
@@ -151,6 +116,49 @@ document.addEventListener("DOMContentLoaded", () => {
     downloadR.style.display = "inline-flex";
   }
 
+  // ===== Rate limit хамгаалалт (Free tier-д хэрэгтэй) =====
+  let aiBusy = false;
+
+  function setBtnLoading(btn, on) {
+    if (!btn) return;
+    btn.disabled = on;
+    btn.style.opacity = on ? "0.6" : "1";
+    btn.style.pointerEvents = on ? "none" : "auto";
+  }
+
+  async function withLock(btn, fn) {
+    if (aiBusy) {
+      setText(aiStatus, "⏳ Түр хүлээгээрэй... (AI ажиллаж байна)");
+      return;
+    }
+    aiBusy = true;
+    setBtnLoading(aiBtn, true);
+    setBtnLoading(colorizeBtn, true);
+
+    try {
+      await fn();
+    } finally {
+      // 10 сек cooldown
+      const cooldown = 10;
+      let left = cooldown;
+      setText(aiStatus, `⏳ ${left}s хүлээгээд дахин туршаарай.`);
+
+      const timer = setInterval(() => {
+        left--;
+        if (left <= 0) {
+          clearInterval(timer);
+          aiBusy = false;
+          setBtnLoading(aiBtn, false);
+          setBtnLoading(colorizeBtn, false);
+          // setText(aiStatus, ""); // хүсвэл цэвэрлэ
+        } else {
+          setText(aiStatus, `⏳ ${left}s хүлээгээд дахин туршаарай.`);
+        }
+      }, 1000);
+    }
+  }
+
+  // ===== Call Netlify function =====
   async function callFn(fnUrl, imageDataUrl, statusPrefix){
     setText(aiStatus, statusPrefix);
     aiResult.style.display = "none";
@@ -169,7 +177,17 @@ document.addEventListener("DOMContentLoaded", () => {
       setText(aiStatus, `❌ Function JSON биш буцаалаа (status ${r.status}). ` + raw.slice(0,140));
       return;
     }
+
     if (!r.ok) {
+      // ✅ 429 throttled бол retry_after-г дагаж 1 удаа retry
+      if (r.status === 429) {
+        const retryAfter = Number(data?.details?.retry_after ?? 8);
+        const wait = Math.max(3, retryAfter) + 1;
+        setText(aiStatus, `⏳ Хэт олон хүсэлт. ${wait}s хүлээгээд дахин оролдож байна...`);
+        await new Promise(res => setTimeout(res, wait * 1000));
+        return callFn(fnUrl, imageDataUrl, statusPrefix);
+      }
+
       setText(aiStatus, "❌ Алдаа:\n" + JSON.stringify(data, null, 2));
       return;
     }
@@ -191,10 +209,15 @@ document.addEventListener("DOMContentLoaded", () => {
     try{
       const img = await loadImage(fileR.files[0]);
       baseImg = img;
-      canvas.width = img.width;
-      canvas.height = img.height;
+
+      // том зураг browser гацуулахгүйн тулд optional resize
+      const maxW = 1600;
+      const scale = img.width > maxW ? (maxW / img.width) : 1;
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
 
       ctx.filter = "none";
+      ctx.clearRect(0,0,canvas.width,canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       setText(statusEl, "✅ Зураг бэлэн. Preset сонгоод Apply дар.");
@@ -215,22 +238,29 @@ document.addEventListener("DOMContentLoaded", () => {
     applyFilters();
   });
 
-  aiBtn.addEventListener("click", async (e) => {
+  // ✅ Restore HD (with lock)
+  aiBtn.addEventListener("click", (e) => {
     e.preventDefault();
     if (!fileR.files[0]) { alert("Эхлээд зураг сонгоорой"); return; }
 
-    const reader = new FileReader();
-    reader.onload = () => callFn("/.netlify/functions/ai-restore", reader.result, "🤖 Restore HD хийж байна... (10–30 сек)");
-    reader.readAsDataURL(fileR.files[0]);
+    withLock(aiBtn, async () => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        callFn("/.netlify/functions/ai-restore", reader.result, "🤖 Restore HD хийж байна... (10–30 сек)");
+      reader.readAsDataURL(fileR.files[0]);
+    });
   });
 
-  colorizeBtn.addEventListener("click", async (e) => {
+  // ✅ Colorize (with lock)
+  colorizeBtn.addEventListener("click", (e) => {
     e.preventDefault();
     if (!fileR.files[0]) { alert("Эхлээд зураг сонгоорой"); return; }
 
-    const reader = new FileReader();
-    reader.onload = () => callFn("/.netlify/functions/ai-colorize", reader.result, "🎨 Colorize хийж байна... (10–30 сек)");
-    reader.readAsDataURL(fileR.files[0]);
+    withLock(colorizeBtn, async () => {
+      const reader = new FileReader();
+      reader.onload = () =>
+        callFn("/.netlify/functions/ai-colorize", reader.result, "🎨 Colorize хийж байна... (10–30 сек)");
+      reader.readAsDataURL(fileR.files[0]);
+    });
   });
 });
-
