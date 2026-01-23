@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // ===== Elements =====
+
+  // ===== ELEMENTS =====
   const fileR = document.getElementById("fileR");
   const canvas = document.getElementById("canvasR");
   const ctx = canvas.getContext("2d");
@@ -25,242 +26,152 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let baseImg = null;
 
-  // ===== Helpers =====
+  // ===== HELPERS =====
   const setText = (el, t) => { if (el) el.textContent = t; };
 
   function loadImage(file){
     return new Promise((resolve, reject) => {
-      if (!file) return reject("Зургаа сонгоорой.");
-      if (!file.type?.startsWith("image/")) return reject("Зураг файл сонгоорой (.jpg/.png).");
+      if (!file) return reject("Зургаа сонгоорой");
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = () => reject("Зураг уншиж чадсангүй.");
+      img.onerror = () => reject("Зураг уншиж чадсангүй");
       img.src = URL.createObjectURL(file);
     });
   }
 
-  function setPreset(preset){
-    if (preset === "auto") {
-      sharpenEl.value = 35; denoiseEl.value = 25;
-      brightEl.value = 105; contrastEl.value = 120; satEl.value = 112;
-    } else if (preset === "face") {
-      sharpenEl.value = 45; denoiseEl.value = 15;
-      brightEl.value = 108; contrastEl.value = 125; satEl.value = 115;
-    } else if (preset === "old") {
-      sharpenEl.value = 30; denoiseEl.value = 40;
-      brightEl.value = 110; contrastEl.value = 135; satEl.value = 118;
-    }
+  function fileToDataURL(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject("FileReader error");
+      reader.readAsDataURL(file);
+    });
   }
 
+  function setPreset(p){
+    if (p==="auto"){ sharpenEl.value=35; denoiseEl.value=25; brightEl.value=105; contrastEl.value=120; satEl.value=112; }
+    if (p==="face"){ sharpenEl.value=45; denoiseEl.value=15; brightEl.value=108; contrastEl.value=125; satEl.value=115; }
+    if (p==="old"){  sharpenEl.value=30; denoiseEl.value=40; brightEl.value=110; contrastEl.value=135; satEl.value=118; }
+  }
+
+  // ===== CANVAS FILTER =====
   function tryEnhance(denoise, sharpen){
     const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const data = imgData.data;
-    const w = canvas.width, h = canvas.height;
-    const idx = (x,y)=> (y*w + x)*4;
-
-    // Denoise
     const d = Math.min(1, denoise/100);
-    if (d>0){
-      const copy = new Uint8ClampedArray(data);
-      const r = d>0.66 ? 2 : 1;
-      for (let y=r; y<h-r; y++){
-        for (let x=r; x<w-r; x++){
-          let R=0,G=0,B=0,C=0;
-          for (let yy=-r; yy<=r; yy++){
-            for (let xx=-r; xx<=r; xx++){
-              const i=idx(x+xx,y+yy);
-              R+=copy[i]; G+=copy[i+1]; B+=copy[i+2]; C++;
-            }
-          }
-          const i=idx(x,y);
-          data[i]   = data[i]*(1-d)   + (R/C)*d;
-          data[i+1] = data[i+1]*(1-d) + (G/C)*d;
-          data[i+2] = data[i+2]*(1-d) + (B/C)*d;
-        }
-      }
-    }
-
-    // Sharpen
     const s = Math.min(1, sharpen/100);
-    if (s>0){
-      const copy = new Uint8ClampedArray(data);
-      for (let y=1; y<h-1; y++){
-        for (let x=1; x<w-1; x++){
-          const c=idx(x,y), l=idx(x-1,y), r=idx(x+1,y), u=idx(x,y-1), d2=idx(x,y+1);
-          for (let ch=0; ch<3; ch++){
-            const v = copy[c+ch]*5 - copy[l+ch] - copy[r+ch] - copy[u+ch] - copy[d2+ch];
-            data[c+ch] = copy[c+ch]*(1-s) + Math.max(0,Math.min(255,v))*s;
-          }
-        }
+
+    if (d>0){
+      const copy = new Uint8ClampedArray(imgData.data);
+      for (let i=0;i<imgData.data.length;i+=4){
+        imgData.data[i]   = imgData.data[i]*(1-d) + copy[i]*d;
+        imgData.data[i+1] = imgData.data[i+1]*(1-d) + copy[i+1]*d;
+        imgData.data[i+2] = imgData.data[i+2]*(1-d) + copy[i+2]*d;
       }
     }
-
+    if (s>0){
+      for (let i=0;i<imgData.data.length;i+=4){
+        imgData.data[i]   = Math.min(255, imgData.data[i]*(1+s));
+        imgData.data[i+1] = Math.min(255, imgData.data[i+1]*(1+s));
+        imgData.data[i+2] = Math.min(255, imgData.data[i+2]*(1+s));
+      }
+    }
     ctx.putImageData(imgData,0,0);
   }
 
   function applyFilters(){
     if (!baseImg) return;
-
-    const bright = Number(brightEl.value);
-    const contrast = Number(contrastEl.value);
-    const sat = Number(satEl.value);
-
-    ctx.filter = `brightness(${bright}%) contrast(${contrast}%) saturate(${sat}%)`;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+    ctx.filter = `brightness(${brightEl.value}%) contrast(${contrastEl.value}%) saturate(${satEl.value}%)`;
+    ctx.drawImage(baseImg,0,0,canvas.width,canvas.height);
     ctx.filter = "none";
-
     tryEnhance(Number(denoiseEl.value), Number(sharpenEl.value));
-
     downloadR.href = canvas.toDataURL("image/png");
-    downloadR.style.display = "inline-flex";
+    downloadR.style.display="inline-flex";
   }
 
-  // ===== Rate limit хамгаалалт (Free tier-д хэрэгтэй) =====
+  // ===== RATE LIMIT LOCK =====
   let aiBusy = false;
+  const COOLDOWN = 10;
 
-  function setBtnLoading(btn, on) {
-    if (!btn) return;
-    btn.disabled = on;
-    btn.style.opacity = on ? "0.6" : "1";
-    btn.style.pointerEvents = on ? "none" : "auto";
-  }
-
-  async function withLock(btn, fn) {
-    if (aiBusy) {
-      setText(aiStatus, "⏳ Түр хүлээгээрэй... (AI ажиллаж байна)");
+  async function withLock(btn, fn){
+    if (aiBusy){
+      setText(aiStatus,"⏳ Түр хүлээгээрэй…");
       return;
     }
     aiBusy = true;
-    setBtnLoading(aiBtn, true);
-    setBtnLoading(colorizeBtn, true);
+    aiBtn.disabled = true;
+    colorizeBtn.disabled = true;
 
-    try {
-      await fn();
-    } finally {
-      // 10 сек cooldown
-      const cooldown = 10;
-      let left = cooldown;
-      setText(aiStatus, `⏳ ${left}s хүлээгээд дахин туршаарай.`);
-
-      const timer = setInterval(() => {
-        left--;
-        if (left <= 0) {
-          clearInterval(timer);
-          aiBusy = false;
-          setBtnLoading(aiBtn, false);
-          setBtnLoading(colorizeBtn, false);
-          // setText(aiStatus, ""); // хүсвэл цэвэрлэ
-        } else {
-          setText(aiStatus, `⏳ ${left}s хүлээгээд дахин туршаарай.`);
-        }
-      }, 1000);
-    }
-  }
-
-  // ===== Call Netlify function =====
-  async function callFn(fnUrl, imageDataUrl, statusPrefix){
-    setText(aiStatus, statusPrefix);
-    aiResult.style.display = "none";
-
-    const r = await fetch(fnUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: imageDataUrl })
-    });
-
-    const raw = await r.text();
-    let data = null;
-    try { data = JSON.parse(raw); } catch {}
-
-    if (!data) {
-      setText(aiStatus, `❌ Function JSON биш буцаалаа (status ${r.status}). ` + raw.slice(0,140));
-      return;
-    }
-
-    if (!r.ok) {
-      // ✅ 429 throttled бол retry_after-г дагаж 1 удаа retry
-      if (r.status === 429) {
-        const retryAfter = Number(data?.details?.retry_after ?? 8);
-        const wait = Math.max(3, retryAfter) + 1;
-        setText(aiStatus, `⏳ Хэт олон хүсэлт. ${wait}s хүлээгээд дахин оролдож байна...`);
-        await new Promise(res => setTimeout(res, wait * 1000));
-        return callFn(fnUrl, imageDataUrl, statusPrefix);
-      }
-
-      setText(aiStatus, "❌ Алдаа:\n" + JSON.stringify(data, null, 2));
-      return;
-    }
-
-    const out = Array.isArray(data.output) ? data.output[data.output.length - 1] : data.output;
-    if (!out) {
-      setText(aiStatus, "❌ AI output олдсонгүй.");
-      console.log("AI response:", data);
-      return;
-    }
-
-    aiResult.src = out;
-    aiResult.style.display = "block";
-    setText(aiStatus, "✅ Бэлэн!");
-  }
-
-  // ===== Events =====
-  fileR.addEventListener("change", async () => {
     try{
-      const img = await loadImage(fileR.files[0]);
-      baseImg = img;
-
-      // том зураг browser гацуулахгүйн тулд optional resize
-      const maxW = 1600;
-      const scale = img.width > maxW ? (maxW / img.width) : 1;
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-
-      ctx.filter = "none";
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      setText(statusEl, "✅ Зураг бэлэн. Preset сонгоод Apply дар.");
-      downloadR.style.display = "none";
-      setText(aiStatus, "");
-      aiResult.style.display = "none";
-    }catch(e){
-      setText(statusEl, "❌ " + e);
+      await fn(); // 🔥 ЭНЭ ЧУХАЛ
+    }finally{
+      let left = COOLDOWN;
+      setText(aiStatus,`⏳ ${left}s хүлээгээд дахин туршаарай`);
+      const t = setInterval(()=>{
+        left--;
+        if (left<=0){
+          clearInterval(t);
+          aiBusy=false;
+          aiBtn.disabled=false;
+          colorizeBtn.disabled=false;
+          setText(aiStatus,"");
+        }else{
+          setText(aiStatus,`⏳ ${left}s хүлээгээд дахин туршаарай`);
+        }
+      },1000);
     }
-  });
+  }
 
-  autoBtn.addEventListener("click", () => { setPreset("auto"); setText(statusEl,"✨ Auto Enhance preset"); });
-  faceBtn.addEventListener("click", () => { setPreset("face"); setText(statusEl,"🙂 Face Focus preset"); });
-  oldBtn.addEventListener("click",  () => { setPreset("old");  setText(statusEl,"🕰️ Old Photo preset"); });
+  // ===== CALL NETLIFY FUNCTION =====
+  async function callFn(url, image, msg){
+    setText(aiStatus,msg);
+    aiResult.style.display="none";
 
-  applyBtn.addEventListener("click", () => {
-    if (!baseImg) { alert("Эхлээд зураг сонгоорой."); return; }
-    applyFilters();
-  });
-
-  // ✅ Restore HD (with lock)
-  aiBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (!fileR.files[0]) { alert("Эхлээд зураг сонгоорой"); return; }
-
-    withLock(aiBtn, async () => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        callFn("/.netlify/functions/ai-restore", reader.result, "🤖 Restore HD хийж байна... (10–30 сек)");
-      reader.readAsDataURL(fileR.files[0]);
+    const r = await fetch(url,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ image })
     });
+
+    const data = await r.json();
+    if (!r.ok){
+      throw new Error(JSON.stringify(data));
+    }
+
+    const out = Array.isArray(data.output) ? data.output.at(-1) : data.output;
+    aiResult.src = out;
+    aiResult.style.display="block";
+    setText(aiStatus,"✅ Бэлэн!");
+  }
+
+  // ===== EVENTS =====
+  fileR.addEventListener("change", async ()=>{
+    const img = await loadImage(fileR.files[0]);
+    baseImg = img;
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img,0,0);
+    setText(statusEl,"✅ Зураг бэлэн. Preset сонгоод Apply дар.");
   });
 
-  // ✅ Colorize (with lock)
-  colorizeBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (!fileR.files[0]) { alert("Эхлээд зураг сонгоорой"); return; }
+  autoBtn.onclick = ()=>setPreset("auto");
+  faceBtn.onclick = ()=>setPreset("face");
+  oldBtn.onclick  = ()=>setPreset("old");
+  applyBtn.onclick = applyFilters;
 
-    withLock(colorizeBtn, async () => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        callFn("/.netlify/functions/ai-colorize", reader.result, "🎨 Colorize хийж байна... (10–30 сек)");
-      reader.readAsDataURL(fileR.files[0]);
+  aiBtn.onclick = ()=>{
+    if (!fileR.files[0]) return alert("Зураг сонго");
+    withLock(aiBtn, async ()=>{
+      const img64 = await fileToDataURL(fileR.files[0]);
+      await callFn("/.netlify/functions/ai-restore", img64, "🤖 Restore HD хийж байна…");
     });
-  });
+  };
+
+  colorizeBtn.onclick = ()=>{
+    if (!fileR.files[0]) return alert("Зураг сонго");
+    withLock(colorizeBtn, async ()=>{
+      const img64 = await fileToDataURL(fileR.files[0]);
+      await callFn("/.netlify/functions/ai-colorize", img64, "🎨 Colorize хийж байна…");
+    });
+  };
+
 });
